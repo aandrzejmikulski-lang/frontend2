@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function AdminTickets() {
+export default function AdminTicketsBasic() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -14,91 +14,82 @@ export default function AdminTickets() {
   const loadTickets = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("community_tickets")
       .select(`
         id,
         title,
-        description,
         status,
         created_at,
-        community_members (
-          profiles (email)
-        ),
-        communities (name)
+        communities (name),
+        community_buildings (name),
+        profiles (email)
       `)
       .order("created_at", { ascending: false });
 
-    if (error) console.error(error);
     setTickets(data || []);
     setLoading(false);
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    const { error } = await supabase
-      .from("community_tickets")
-      .update({ status })
-      .eq("id", id);
-
-    if (error) {
-      alert("Błąd podczas zmiany statusu");
-      return;
-    }
-
-    loadTickets();
-  };
+  if (loading) return <p>Ładowanie...</p>;
 
   return (
     <div>
-      <h1 style={{ fontSize: 32, marginBottom: 20 }}>Zgłoszenia mieszkańców</h1>
+      <h1 style={{ fontSize: 32, marginBottom: 20 }}>Zgłoszenia</h1>
 
-      {loading && <p>Ładowanie danych...</p>}
-
-      {!loading && tickets.length === 0 && (
+      {tickets.length === 0 && (
         <p style={{ opacity: 0.7 }}>Brak zgłoszeń do wyświetlenia.</p>
       )}
 
-      {tickets.map((t) => (
-        <div
-          key={t.id}
-          className="glass"
-          style={{
-            padding: 20,
-            borderRadius: 12,
-            marginBottom: 20,
-          }}
-        >
-          <h3>{t.title}</h3>
-          <p style={{ opacity: 0.7 }}>{t.description}</p>
-
-          <p style={{ marginTop: 10 }}>
-            Status: <b>{t.status}</b>
-          </p>
-
-          <select
-            value={t.status}
-            onChange={(e) => updateStatus(t.id, e.target.value)}
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        {tickets.map((t) => (
+          <div
+            key={t.id}
+            className="glass"
             style={{
-              marginTop: 10,
-              padding: 8,
-              borderRadius: 8,
-              border: "1px solid #ccc",
+              padding: 20,
+              borderRadius: 12,
             }}
           >
-            <option value="new">Nowe</option>
-            <option value="in_progress">W trakcie</option>
-            <option value="done">Zakończone</option>
-          </select>
+            <h3>{t.title}</h3>
 
-          <p style={{ marginTop: 10, opacity: 0.6 }}>
-            Użytkownik: {t.community_members?.profiles?.email || "—"}
-          </p>
+            <p style={{ opacity: 0.7 }}>
+              Status: <b>{t.status}</b>
+            </p>
 
-          <p style={{ marginTop: 4, opacity: 0.6 }}>
-            Wspólnota: {t.communities?.name || "—"}
-          </p>
-        </div>
-      ))}
+            <p style={{ opacity: 0.7 }}>
+              Wspólnota: <b>{t.communities?.name}</b>
+            </p>
+
+            <p style={{ opacity: 0.7 }}>
+              Budynek: <b>{t.community_buildings?.name}</b>
+            </p>
+
+            <p style={{ opacity: 0.7 }}>
+              Zgłaszający: <b>{t.profiles?.email}</b>
+            </p>
+
+            <p style={{ opacity: 0.6, marginTop: 10 }}>
+              {new Date(t.created_at).toLocaleString()}
+            </p>
+
+            <a
+              href={`/admin/tickets/${t.id}`}
+              style={{
+                marginTop: 10,
+                display: "inline-block",
+                padding: "10px 16px",
+                borderRadius: 8,
+                background: "#222",
+                color: "white",
+                textDecoration: "none",
+              }}
+            >
+              Otwórz zgłoszenie
+            </a>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
