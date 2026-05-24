@@ -1,41 +1,39 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(req: NextRequest) {
-  const url = req.nextUrl.clone();
-  const session = req.cookies.get("sb-access-token"); // Supabase zapisuje token w cookie
+export async function middleware(req: NextRequest) {
+  const supabaseToken = req.cookies.get("sb-access-token")?.value;
 
-  const isLoggedIn = !!session;
-  const isAdminRoute = url.pathname.startsWith("/admin");
-  const isUserRoute = url.pathname.startsWith("/user");
-  const isPublicRoute = url.pathname.startsWith("/login");
-
-  // Jeśli nie jest zalogowany → zawsze na login
-  if (!isLoggedIn && !isPublicRoute) {
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  // Jeśli brak tokena → redirect do logowania
+  if (!supabaseToken) {
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // Jeśli jest zalogowany i wchodzi na /login → przekieruj do panelu
-  if (isLoggedIn && isPublicRoute) {
-    url.pathname = "/user/dashboard";
-    return NextResponse.redirect(url);
+  // Pobieramy rolę z cookie (ustawisz ją w layout)
+  const role = req.cookies.get("role")?.value;
+
+  const pathname = req.nextUrl.pathname;
+
+  // ADMIN → tylko /admin/*
+  if (pathname.startsWith("/admin")) {
+    if (role !== "admin") {
+      return NextResponse.redirect(new URL("/user/dashboard", req.url));
+    }
   }
 
-  // Admin routes — tu później dodamy sprawdzanie roli
-  if (isAdminRoute) {
-    return NextResponse.next();
-  }
-
-  // User routes
-  if (isUserRoute) {
-    return NextResponse.next();
+  // USER → tylko /user/*
+  if (pathname.startsWith("/user")) {
+    if (role !== "user") {
+      return NextResponse.redirect(new URL("/admin/tickets", req.url));
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/user/:path*", "/login"],
+  matcher: [
+    "/admin/:path*",
+    "/user/:path*",
+  ],
 };
-
